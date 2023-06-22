@@ -1,0 +1,11 @@
+[package]
+name = "rvm"
+version = "0.0.1"
+authors = ["notPlancha <Andre_Plancha@iscte-iul.pt>"]
+description = "R version (and package) manager"
+repository = "https://github.com/notPlancha/rvm"
+publish = false
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.3.5", features = ["derive"] }
