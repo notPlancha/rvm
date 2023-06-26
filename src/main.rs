@@ -1,11 +1,15 @@
 mod args;
-mod commands;
+mod actions;
+mod utils;
+
 extern crate clap;
 use clap::Parser;
-use args::Cli;
+use args::{Cli, Action};
 
 fn main() {
   let args = Cli::parse();
-  // check if it's Init
-  println!("{:?}", args.command );
+  // switch functions based on command
+  match args.action {
+    Action::Init {..} => actions::init::init(args.action.rversion),
+  }
 }

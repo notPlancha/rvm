@@ -4,12 +4,12 @@ use clap:: {Args as cArgs, Parser, Subcommand};
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
   #[command(subcommand)]
-  pub command: Option<Command>
+  pub action: Action
 }
 
 
 #[derive(Subcommand, Debug)]
-pub enum Command {
+pub enum Action {
   /// create a new project in the current directory
   Init { //flags
     #[arg(short = 'R', long = "Rversion", default_value = "latest")]
