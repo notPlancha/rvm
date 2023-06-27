@@ -2,14 +2,15 @@ mod args;
 mod actions;
 mod utils;
 
-extern crate clap;
 use clap::Parser;
 use args::{Cli, Action};
 
 fn main() {
   let args = Cli::parse();
   // switch functions based on command
-  match args.action {
-    Action::Init {..} => actions::init::init(args.action.rversion),
+  let action = args.action;
+  match action {
+    Action::Init {rversion, ..} => actions::init::main(String::from("4.3.1"), None), //TODO change to flags
   }
+
 }
