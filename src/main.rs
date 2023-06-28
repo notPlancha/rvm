@@ -12,5 +12,4 @@ fn main() {
   match action {
     Action::Init {rversion, ..} => actions::init::main(String::from("4.3.1"), None), //TODO change to flags
   }
-
 }

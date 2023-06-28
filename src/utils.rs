@@ -1,33 +1,38 @@
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
+use lazy_static::lazy_static;
 use reqwest::{StatusCode};
 use reqwest::blocking::{Response};
 use thiserror::Error;
-//
-// pub fn get_latest() -> String {
-//
-// }
+use tl::queryselector::iterable::QueryIterable;
+
 
 pub fn install_version(path: &Path, version: &str) -> bool {
   let args = "/silent /mergetasks=!desktopicon /dir=here";//TODO change this part
   return true;
 }
+macro_rules! request {
+  ($typof:ident, $url:expr) => {{ //2 to make an isolated scope
+    let response = CLIENT.$typof($url).send().unwrap(); //TODO change unwrap here
+    if response.status() != 200{
+      return Err(response.status());
+    }
+    response
+  }};
+}
 
+#[allow(non_snake_case)]
 pub fn download_R(version: String, dest: Option<PathBuf>) -> Result<PathBuf, StatusCode>{
   /// returns the path for the  exe installer
   /// dest is the Windows temp folder if is None
   //TODO change to be possible to change CRAN
   let url: &String = &format!("https://cran.r-project.org/bin/windows/base/old/{}/R-{}-win.exe", version, version);
-  let client = reqwest::blocking::Client::new();
-  let status = client.head(url).send().unwrap().status(); //head request to check if the file exists
-  if status != 200 {
-    return Err(status);
-  }
-  let response: Response = client.get(url).send().unwrap();
+  request!(head, url); //head request to check if the file exists
+  let response: Response = request!(get, url); //get request to download the file
   let destination = dest.unwrap_or(std::env::temp_dir());
   let filename = format!("R-{}-win.exe", version);
-  let file = response_to_file(destination, filename, response).unwrap(); // TODO change unrwap here
+  let file = response_to_file(destination, filename, response).unwrap(); // TODO change unwrap here
   Ok(file)
 }
 
@@ -46,4 +51,43 @@ enum ResponseToFileError {
   Io(#[from] io::Error),
   #[error("error in response file")]
   Reqwest(#[from] reqwest::Error),
+}
+
+pub fn get_latest() -> Result<String, StatusCode> {
+  /// returns the latest version of R using release.html
+  /// Example html
+  /// <html>
+  /// <head>
+  /// <META HTTP-EQUIV="Refresh" CONTENT="0; URL=R-4.3.1-win.exe">
+  /// <body></body>
+  let url = "https://cran.r-project.org/bin/windows/base/release.html";
+  let response = request!(get, url);
+  let body = response.text().expect("Failed to get body");
+  let dom = tl::parse(&body, tl::ParserOptions::default()).expect("Failed to parse body");
+  let parser = dom.parser();
+  let meta = dom.query_selector("META")
+    .expect("Failed to do query")
+    .next()
+    .expect("failed to parse query")
+    .get(parser)
+    .expect("failed to get node after parsing")
+    .as_tag()
+    .expect("failed to cast node to tag");
+  let content: &tl::Bytes = meta
+    .attributes()
+    .get("CONTENT")
+    .expect("failed to get attribute")
+    .expect("no atribute value found");
+  let version = content
+    .try_as_utf8_str()
+    .expect("failed to parse bytes as string")
+    .split("=")
+    .nth(1)
+    .expect("failed to get version");
+  Ok(String::from(version))
+}
+
+//lazy static for the client
+lazy_static!{
+  static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::new();
 }
