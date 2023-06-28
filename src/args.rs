@@ -14,5 +14,7 @@ pub enum Action {
   Init { //flags
     #[arg(short = 'R', long = "Rversion", default_value = "latest")]
     rversion: String,
+    #[arg(short = 'p', long = "path", default_value = r".\")]
+    path: String,
   }
 }

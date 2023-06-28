@@ -8,7 +8,7 @@ use thiserror::Error;
 use tl::queryselector::iterable::QueryIterable;
 
 
-pub fn install_version(path: &Path, version: &str) -> bool {
+pub fn install_version(path: &PathBuf, version: String) -> bool {
   let args = "/silent /mergetasks=!desktopicon /dir=here";//TODO change this part
   return true;
 }

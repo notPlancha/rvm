@@ -1,15 +1,16 @@
+use std::fs;
 use std::path::{Path, PathBuf};
+use path_clean::PathClean;
 use crate::utils;
 use crate::utils::download_R;
 
-pub fn main(rversion: String, path: Option<PathBuf>) {//TODO
+pub fn main(mut rversion: String, mut path: PathBuf) {//TODO
+  if path.is_relative() {
+    path = std::env::current_dir().unwrap().join(path).clean(); //TODO don't unrwap?
+  }
   let version: String;
   if rversion == "latest" || rversion == "release" {
-    version = utils::get_latest().unwrap(); //TODO change unrwap here
-  } else {
-    version = rversion;
+    rversion = utils::get_latest().unwrap(); //TODO change unrwap here
   }
-  dbg!("init");
-  let downloaded_to = download_R(version, None).unwrap();
-  dbg!(downloaded_to);
+  //let installed = utils::install_version(&path.unwrap_or(), version);
 }
