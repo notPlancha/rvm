@@ -10,5 +10,6 @@ pub fn main(mut rversion: String, path: &Path) {//TODO
     rversion = utils::get_latest().unwrap(); //TODO change unrwap here
   }
   utils::install_version(path.join(r".\env\"), rversion);
-}
 
+  let toml_path = path.join("Renv.toml");
+}
