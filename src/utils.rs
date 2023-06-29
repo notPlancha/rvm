@@ -1,24 +1,35 @@
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
+use duct::cmd;
 use lazy_static::lazy_static;
+use path_clean::PathClean;
 use reqwest::{StatusCode};
 use reqwest::blocking::{Response};
 use thiserror::Error;
 use tl::queryselector::iterable::QueryIterable;
 
 
-pub fn install_version(path: &PathBuf, version: String) -> bool {
-  let args = "/silent /mergetasks=!desktopicon /dir=here";//TODO change this part
-  return true;
+pub fn install_version(mut path: PathBuf, version: String) {
+  path = path.to_absolute();
+  let path_str = path.to_str().unwrap();
+  let installer = download_R(version, None).unwrap();
+  cmd!(installer,
+    format!(r"/dir={}\", path_str),
+    "/verysilent",
+    "/mergetasks=!desktopicon",
+    "/currentuser",
+  ).run().unwrap();
+  println!("R installed in {}", path_str);
 }
+
 macro_rules! request {
   ($typof:ident, $url:expr) => {{ //2 to make an isolated scope
     let response = CLIENT.$typof($url).send().unwrap(); //TODO change unwrap here
     if response.status() != 200{
       return Err(response.status());
     }
-    response
+    response //returns this
   }};
 }
 
@@ -60,6 +71,7 @@ pub fn get_latest() -> Result<String, StatusCode> {
   /// <head>
   /// <META HTTP-EQUIV="Refresh" CONTENT="0; URL=R-4.3.1-win.exe">
   /// <body></body>
+  /// TODO it's returning the exe too
   let url = "https://cran.r-project.org/bin/windows/base/release.html";
   let response = request!(get, url);
   let body = response.text().expect("Failed to get body");
@@ -81,7 +93,7 @@ pub fn get_latest() -> Result<String, StatusCode> {
   let version = content
     .try_as_utf8_str()
     .expect("failed to parse bytes as string")
-    .split("=")
+    .split("-")
     .nth(1)
     .expect("failed to get version");
   Ok(String::from(version))
@@ -90,4 +102,15 @@ pub fn get_latest() -> Result<String, StatusCode> {
 //lazy static for the client
 lazy_static!{
   static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::new();
+}
+
+pub trait ToAbsolute {fn to_absolute(&self) -> PathBuf;}
+impl ToAbsolute for PathBuf {
+  fn to_absolute(&self) -> PathBuf {
+    return if self.is_relative() {
+      std::env::current_dir().unwrap().join(self).clean()
+    } else {
+      self.clean()
+    }
+  }
 }

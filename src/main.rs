@@ -2,7 +2,7 @@ mod args;
 mod actions;
 mod utils;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use clap::Parser;
 use args::{Cli, Action};
 
@@ -14,7 +14,7 @@ fn main() {
     Action::Init {rversion, path} =>
       actions::init::main(
         String::from(rversion),
-        PathBuf::from(path)
+        Path::new(&path)
       ),
   }
 }
