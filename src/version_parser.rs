@@ -1,4 +1,6 @@
+use std::iter::Enumerate;
 use std::ptr::eq;
+use std::str::{Chars, FromStr};
 use thiserror::Error;
 
 struct Version {
@@ -21,41 +23,52 @@ impl Default for Version {
   }
 }
 
-impl Version {
-  fn parse(version: &str) -> Result<Self, ParseError> {
-    let version = version.trim();
-    // enumerate the string
-    let mut chars_enume = version.chars().enumerate();
-    //first char
-    let mut curr = next_or_err!(chars_enume, ParseError::Empty);
+// https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=5a5060e5715aff667d6a263d09fcc690
+macro_rules! next_or_return {
+  ($var:expr, $ret:expr) => {
+    match $iter.next() {
+      Some(c) => c,
+      None => return Ok($ret),
+    }
+  };
+}
 
+impl Version {
+  fn parse(version: String) -> Result<Self, ParseError> {
+    let version = version.trim();
+    Self::parse_enume(&mut version.chars())
+  }
+  fn parse_enume(iter: &mut Chars) -> Result<Self, ParseError> {
+    // iterator because I wanna continue from the last position and let it continue after
+    // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=fb1ef427abec058c41ecf770313369e4
+    //region check if empty and check for v
+    let mut curr_char: char = iter.next().ok_or(ParseError::Empty)?;
     if matches!(first, "v" | "V") {
-      // skip the first character
-      curr = next_or_err!(chars_enume, ParseError::Empty);
+      curr = iter.next().ok_or(ParseError::Empty)?;
     }
     if !matches!(first, "0".."9") {
       //can be also a dot if it's .5.1 for example but this can be a mistake so it's better to not implement it
       return Err(ParseError::Invalid);
     }
-
+    //endregion
+    //region main loop
     let major = String::new();
     let minor = String::new();
     let patch = String::new();
-    let mut current: &String = &major;
+    let mut current_ver_part: &String = &major;
     let mut extra_dot = false;
-    let mut latest_char: &char;
     // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=1961ff4d2fad5b785603657be4652806
-    while let Some((i, c)) = chars_enume.next() {
-      latest_char = &c;
+    while let Some(c) = iter.next() {
+      curr_char = c;
       if c.is_digit(10){
-        *current.push(c);
+        *current_ver_part.push(c);
       } else if c == "." {
         // change the current string
         // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=203544ae269f81d34e5b2292ffb1d0d1
-        if eq(current, &major) {
-          current = &minor;
-        } else if eq(current, &minor) {
-          current = &patch;
+        if eq(current_ver_part, &major) {
+          current_ver_part = &minor;
+        } else if eq(current_ver_part, &minor) {
+          current_ver_part = &patch;
         } else {
           extra_dot = true;
           break;
@@ -73,35 +86,46 @@ impl Version {
       pre_release: None,
       build: None,
     };
-    if latest_char == "-" {
+    //endregion
+    //region pre_release
+    if curr_char == "-" {
       let mut pre_release = String::new();
-      //get what's in front of the -, until the +
-      while let Some((i, c)) = chars_enume.next() {
-        if c == "+" {
+      //get what's in front of the -, until the + or non alphanumeric (except a dot)
+      loop {
+        curr_char = next_or_return!(iter, ret);
+        if curr_char == "." || curr_char.is_alphanumeric() {
+          pre_release.push(c);
+        } else {
           break;
         }
-        pre_release.push(c);
       }
       ret.pre_release = Some(pre_release);
     }
-    if extra_dot || latest_char == "+" {
+    //endregion
+    //region build
+    if matches!(curr_char, "." | "+") {
       let mut build = String::new();
-      //get what's in front of the +
-      while let Some((i, c)) = chars_enume.next() {
-        build.push(c);
+      //get what's in front of the +, until non alphanumeric (except a dot)
+      loop {
+        curr_char = next_or_return!(iter, ret);
+        if curr_char == "." || curr_char.is_alphanumeric() {
+          build.push(c);
+        } else {
+          break;
+        }
       }
-      ret.build = Some(build);
     }
+    //endregion
     Ok(ret)
   }
 }
 
-// macro for that let Some thing, with the chars and the error message as args
-macro_rules! next_or_err {
-  ($enume:expr, $err:expr) => {{
-    let Some(ret) = $enume.next() else {return Err($err)};
-    ret
-  }};
+impl FromStr for Version {
+  type Err = ParseError;
+
+  fn from_str(s: String) -> Result<Self, Self::Err> {
+    Self::parse(s)
+  }
 }
 
 // to derive error
@@ -114,20 +138,19 @@ enum ParseError {
   #[error("Invalid version")]
   Invalid,
   #[error("Empty version")]
-  Empty,
+  Empty
 }
 
 struct Range {
   min: Option<Version>,
   max: Option<Version>,
   exceptions: Vec<Version>,
+  exceptions_range: Vec<Range>,
 }
 
 impl Range {
   fn parse(range: &str) -> Result<Self, ParseError> {
-    // makes a vector of the versions and its ops, then transforms it into a range
 
-    panic!("not implemented yet") //TODO
   }
 }
 
