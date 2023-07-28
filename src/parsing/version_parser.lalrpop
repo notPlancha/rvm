@@ -1,0 +1,33 @@
+use crate::parsing::version_parser::Version;
+grammar;
+
+
+num: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
+chars: String = r"[a-zA-Z0-9.]+" => String::from_str(<>).unwrap();
+
+pub version: Version ={
+  "v" version,
+  "V" version,
+  <m:main> <e:opt_extra> <p:opt_pre> <b:opt_build> => Version::new(m.0, m.1, m.2, e, b, p),
+};
+
+main: (i32, Option<i32>, Option<i32>) = {
+  <M:num> "." <m:num> "." <p:num> => (M, Some(m), Some(p)),
+  <M:num> "." <m:num> => (M, Some(m), None),
+  <M:num> => (M, None, None)
+};
+
+opt_extra: Option<String> = {
+  "." <e:chars> => Some(e),
+  => None
+};
+
+opt_pre: Option<String> = {
+  "-" <p:chars> => Some(p),
+  => None
+};
+
+opt_build: Option<String> = {
+  "+" <b:chars> => Some(b),
+  => None
+};
