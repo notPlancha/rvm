@@ -14,9 +14,8 @@ macro_rules! request {
     response //returns this
   }};
 }
-
 //https://georgik.rocks/how-to-download-binary-file-in-rust-by-reqwest/
-fn response_to_file_path(folder: PathBuf, name: String, response: Response) -> Result<PathBuf, ResponseToFileError> {
+pub fn response_to_file_path(folder: PathBuf, name: String, response: Response) -> Result<PathBuf, ResponseToFileError> {
   let filepath = folder.join(name);
   let mut file = File::create(&filepath)?;
   let mut content = io::Cursor::new(response.bytes()?);
@@ -25,7 +24,7 @@ fn response_to_file_path(folder: PathBuf, name: String, response: Response) -> R
 }
 
 #[derive(Error, Debug)]
-enum ResponseToFileError {
+pub enum ResponseToFileError {
   #[error("error in creating file")]
   Io(#[from] io::Error),
   #[error("error in response file")]
