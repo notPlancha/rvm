@@ -2,8 +2,7 @@ mod args;
 mod actions;
 mod utils;
 mod local_utils;
-mod yaml_ser;
-mod version_parser;
+mod parsing;
 
 use std::path::{Path, PathBuf};
 use clap::Parser;

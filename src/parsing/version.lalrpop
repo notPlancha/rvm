@@ -1,0 +1,17 @@
+use crate::parsing::version_parser::Version;
+grammar;
+
+Num: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
+
+pub version: Version ={
+  "v" <version>,
+  "V" <version>,
+  <M:Num> => Version::new(M, None, None, None, None),
+  <M:Num> "." <m:Num> => Version::new(M, Some(m), None, None, None),
+  <M:Num> "." <m:Num> "." <p:Num> => Version::new(M, Some(m), Some(p), None, None),
+  <M:Num> "." <m:Num> "." <p:Num> "-" <pre:pre_release> => Version::new(M, Some(m), Some(p), Some(pre), None),
+  <M:Num> "." <m:Num> "." <p:Num> "+" <build:build> => Version::new(M, Some(m), Some(p), None, Some(build)),
+  <M:Num> "." <m:Num> "." <p:Num> "-" <pre:pre_release> "+" <build:build> => Version::new(M, Some(m), Some(p), Some(pre), Some(build)),
+  <M:Num> "." <m:Num> "." <p:Num> "." <pre:pre_release> "+" <build:build> => Version::new(M, Some(m), Some(p), Some(pre), Some(build)),
+};
+// https://lalrpop.github.io/lalrpop/tutorial/index.html

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+
 fn write_yaml(env: Env, path: PathBuf) -> Result<(), YamlError> {
   let file = File::create(path)?;
   serde_yaml::to_writer(file, &env)?;
