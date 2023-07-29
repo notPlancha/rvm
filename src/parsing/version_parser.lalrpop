@@ -45,6 +45,7 @@ range: (Op, Version) = {
 };
 
 pub ranges: Vec<(Op, Version)> = {
+  <v:version> => vec![(Op::Eq, v)],
   <r:range> <s:separator> => vec![r],
   <r:range> <s:separator> <rs:ranges> => {
     let mut v = vec![r];
