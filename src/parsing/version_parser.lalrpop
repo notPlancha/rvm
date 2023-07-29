@@ -1,17 +1,24 @@
-use crate::parsing::version_parser::Version;
+use crate::parsing::version_parser::{Version, Op};
 grammar;
 
 
-num: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
+num: u32 = r"[0-9]+" => u32::from_str(<>).unwrap(); //+ means 1 or more
 chars: String = r"[a-zA-Z0-9.]+" => String::from_str(<>).unwrap();
+ops: String = r"[ <>=~^]+" => String::from_str(<>).unwrap();
+separator = r"[ ,;]*" => (); // * means 0 or more
+wildcard = r"[*xX]" => ();
 
-pub version: Version ={
-  "v" version,
-  "V" version,
-  <m:main> <e:opt_extra> <p:opt_pre> <b:opt_build> => Version::new(m.0, m.1, m.2, e, b, p),
-};
+pub version: Version = ver_info => <>.0;
+ver_info: (Version, (u32, Option<u32>, Option<u32>)) = {
+  "v" ver_info,
+  "V" ver_info,
+  ver_info ".",
+  <m:main> <e:opt_extra> <p:opt_pre> <b:opt_build> => {
+    (Version::new(m.0, m.1.unwrap_or(0), m.2.unwrap_or(0), e, p, b), m)
+  }
+}
 
-main: (i32, Option<i32>, Option<i32>) = {
+main: (u32, Option<u32>, Option<u32>) = {
   <M:num> "." <m:num> "." <p:num> => (M, Some(m), Some(p)),
   <M:num> "." <m:num> => (M, Some(m), None),
   <M:num> => (M, None, None)
@@ -31,3 +38,38 @@ opt_build: Option<String> = {
   "+" <b:chars> => Some(b),
   => None
 };
+
+range: (Op, Version) = {
+  <op:ops> <v:version> => (Op::from_str(&op).unwrap(), v),
+  starVersion
+};
+
+pub ranges: Vec<(Op, Version)> = {
+  <r:range> <s:separator> => vec![r],
+  <r:range> <s:separator> <rs:ranges> => {
+    let mut v = vec![r];
+    v.extend(rs);
+    v
+  },
+  <s:separator> => vec![],
+  wildcardRange,
+};
+
+wildcardRange: Vec<(Op, Version)> = {
+  <wildcard> => vec![(Op::Ge, Version::new(0, 0, 0, None, None, None))],
+  <v:ver_info> "." <wildcard> => {
+    let (ver, main) = v;
+    if main.1.is_none() { //minor is wildcard, equivelant to caret 0
+      vec![(Op::Caret, ver.clone())]
+    } else if main.2 { // patch is wildcard, equivelant to tilde 0
+      vec![(Op::Tilde, ver.clone())]
+    } else { //extra is wildcard
+     vec![(Op::Ge, ver.clone()), (Op::Lt, ver.with_patch(ver.patch + 1))]
+    }
+  },
+  <v:ver_info> "-" <wildcard> => {
+    //pre-release is wildcard
+    vec![(Op::Eq, v.0.clone())]
+  }
+  //here it can be multiple wildcards or wildcard ranges with regular ones but I don't see the point
+}
