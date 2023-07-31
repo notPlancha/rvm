@@ -1,10 +1,11 @@
 mod args;
 mod actions;
-mod utils;
+#[macro_use] mod utils;
 mod local_utils;
 mod parsing;
 
-use std::path::{Path, PathBuf};
+
+use std::path::Path;
 use clap::Parser;
 use args::{Cli, Action};
 

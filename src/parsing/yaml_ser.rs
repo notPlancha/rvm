@@ -43,9 +43,10 @@ impl Default for Env {
       r#type: Some(ProjectType::default()),
       version: None,
       rversion: Rversion {
-        accepted: rversion,
-        used: rversion,
-        was_latest: version_is_latest,
+        accepted: ">=4.3, <4.4".to_string(), //TODO change to dynamic?
+        used: "4.3.1".to_string(), //TODO change to dynamic?
+        was_latest: None, //TODO change to dynamic?
+        tested_on: None
       },
       dependencies: HashMap::from([
         ("pak".to_owned(), "^0.5.1".to_owned())
@@ -58,10 +59,11 @@ impl Default for Env {
 pub struct Rversion {
   pub accepted: String,
   pub used: String,
-  pub was_latest: bool,
+  pub was_latest: Option<bool>,
+  pub tested_on: Option<Vec<String>>
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub enum ProjectType {
   Package,
   Jupyter,

@@ -3,7 +3,7 @@ use duct::cmd;
 use lazy_static::lazy_static;
 use reqwest::blocking::Response;
 use reqwest::StatusCode;
-use crate::utils::ToAbsolute;
+use crate::utils::{response_to_file_path, ToAbsolute};
 
 pub fn install_version(mut path: PathBuf, version: String) {
   path = path.to_absolute();
@@ -20,27 +20,27 @@ pub fn install_version(mut path: PathBuf, version: String) {
 
 #[allow(non_snake_case)]
 pub fn download_R(version: String, dest: Option<PathBuf>) -> Result<PathBuf, StatusCode>{
-  /// returns the path for the  exe installer
-  /// dest is the Windows temp folder if is None
+  // returns the path for the  exe installer
+  // dest is the Windows temp folder if is None
   //TODO change to be possible to change CRAN
   let url: &String = &format!("https://cran.r-project.org/bin/windows/base/old/{}/R-{}-win.exe", version, version);
   request!(head, url); //head request to check if the file exists
   let response: Response = request!(get, url); //get request to download the file
   let destination = dest.unwrap_or(std::env::temp_dir());
   let filename = format!("R-{}-win.exe", version);
-  let file = response_to_file(destination, filename, response).unwrap(); // TODO change unwrap here
+  let file = response_to_file_path(destination, filename, response).unwrap(); // TODO change unwrap here
   Ok(file)
 }
 
 
 pub fn get_latest() -> Result<String, StatusCode> {
-  /// returns the latest version of R using release.html
-  /// Example html
-  /// <html>
-  /// <head>
-  /// <META HTTP-EQUIV="Refresh" CONTENT="0; URL=R-4.3.1-win.exe">
-  /// <body></body>
-  /// TODO it's returning the exe too
+  // returns the latest version of R using release.html
+  // Example html
+  // <html>
+  // <head>
+  // <META HTTP-EQUIV="Refresh" CONTENT="0; URL=R-4.3.1-win.exe">
+  // <body></body>
+  // TODO it's returning the exe too
   let url = "https://cran.r-project.org/bin/windows/base/release.html";
   let response = request!(get, url);
   let body = response.text().expect("Failed to get body");
