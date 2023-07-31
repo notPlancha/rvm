@@ -27,3 +27,4 @@ cargo build
 
 * Add a way to create a DESCRIPTION file
 * Add a guess for which packages are the imported ones (top level + not latest version)
+* Make tests
