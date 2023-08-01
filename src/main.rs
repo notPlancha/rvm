@@ -4,7 +4,6 @@ mod actions;
 mod local_utils;
 mod parsing;
 
-
 use std::path::Path;
 use clap::Parser;
 use args::{Cli, Action};
@@ -19,5 +18,14 @@ fn main() {
         String::from(rversion),
         Path::new(&path)
       ),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::parsing::version_parser::Version;
+  #[test]
+  fn parse_ver() {
+    assert_eq!(Version::parse("1.2.3"), Ok(Version::new(1, 2, 3, None, None, None)));
   }
 }

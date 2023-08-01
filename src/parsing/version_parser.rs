@@ -1,21 +1,20 @@
-#[macro_use] extern crate lalrpop_util;
-
 use std::cmp::Ordering;
-use std::fmt::Display;
+use std::collections::HashMap;
 use std::str::FromStr;
-use lalrpop_util::lalrpop_mod;
 use thiserror::Error;
+use crate::parsing::grammer::the_parser::{parse_version};
 
-lalrpop_mod!(pub version_parser);
 
-#[derive(Error, Debug)]
-enum ParseError {
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum ParseError {
   #[error("error in parsing version")]
   Version,
   #[error("error in parsing range")]
   Range,
 }
 
+
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Version {
   major: u32,
   minor: u32,
@@ -26,23 +25,22 @@ pub struct Version {
 }
 
 impl Version {
-  //noinspection RsUnresolvedReference
-  fn parse(version: &str) -> Result<Self, ParseError> {
-    let version: Self = version_parser::versionParser::new().parse(version).unwrap_or_else(|_| return Err(ParseError::Version));
+  pub fn parse(version: &str) -> Result<Self, ParseError> {
+    let version: Self = parse_version(version).map_err(|_| ParseError::Version)?;
     Ok(version)
   }
-  fn new(
+  pub fn new(
     major: u32,
     minor: u32,
     patch: u32,
     //1.1.0.1.5 < 1.1.0.1.6, 1.1.0.1.5 > 1.1.0, 1.1.0.0.0 > 1.1.0
     extra_version: Option<String>,
     // 1.1.0-rc.1 < 1.1.0-rc.2, 1-a < 1-b, 1.1.0-rc.1 <= 1.1.0
-    /// # Pre-release-note
-    /// é menor que ele mas no range é igual, tipo uma espécie de epsilon
-    /// isto é porque o range espera-se que por exemplo >= 1.0, < 2.0 não inclua 2.0-alpha
-    /// embora tecnicamente inclui pq é antes
-    /// ainda assim quando for para comparar versões, 2.0-alpha é menor que 2.0 na mesma (por exemplo pra atualizar)
+    // # Pre-release-note
+    // é menor que ele mas no range é igual, tipo uma espécie de epsilon
+    // isto é porque o range espera-se que por exemplo >= 1.0, < 2.0 não inclua 2.0-alpha
+    // embora tecnicamente inclui pq é antes
+    // ainda assim quando for para comparar versões, 2.0-alpha é menor que 2.0 na mesma (por exemplo pra atualizar)
     pre_release: Option<String>,
     //1.1.0+build.1 = 1.1.0+build.2, 1.1.0+build.1 = 1.1.0
     build: Option<String>
@@ -147,18 +145,6 @@ impl FromStr for Version {
   }
 }
 
-impl PartialEq for Version {
-  fn eq(&self, other: &Self) -> bool {
-    self.major == other.major
-      && self.minor == other.minor
-      && self.patch == other.patch
-      && self.extra_version == other.extra_version
-      && self.pre_release == other.pre_release
-  }
-}
-
-impl Eq for Version {}
-
 impl PartialOrd<Version> for Version {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     if self.major < other.major {
@@ -205,6 +191,18 @@ impl ToString for Version {
   }
 }
 
+impl Default for Version {
+  fn default() -> Self {
+    Self {
+      major: 1,
+      minor: 0,
+      patch: 0,
+      extra_version: None,
+      pre_release: None,
+      build: None,
+    }
+  }
+}
 
 struct Range {
   min: Option<Version>, //inclusive
@@ -249,23 +247,25 @@ impl Range {
   fn is_exact_match(&self) -> bool { // min == max or just includes one version
     todo!()
   }
+
+  fn separate_ops(ranges: Vec<(Op, Version)>) -> HashMap<Op, Vec<Version>> {
+    let mut map = HashMap::new();
+    for (op, version) in ranges {
+      map.entry(op).or_insert_with(Vec::new).push(version);
+    }
+    map
+  }
+
   fn from_ver_vec(ranges: Vec<(Op, Version)>) -> Self {
     // Sort the ranges by version number
-    let mut ranges = Self::sort_vec(ranges);
-    // get lowest ge, and highest lt (since it's sorted)
-    let min = ranges.first().map(|(_, v)| *v);
-    let max = ranges.last().map(|(_, v)| *v);
-    // get all the except and include (Ne and Eq)
-    let except: Vec<_> = ranges
-      .into_iter()
-      .filter(|(op, _)| *op == Op::Ne)
-      .map(|(_, v)| v)
-      .collect();
-    let include: Vec<_> = ranges
-      .into_iter()
-      .filter(|(op, _)| *op == Op::Eq)
-      .map(|(_, v)| v)
-      .collect();
+    let mut ranges:Vec<(Op, Version)> = Self::sort_vec(ranges);
+    // separate the ranges by operator
+    let mut map:HashMap<Op, Vec<Version>> = Self::separate_ops(ranges);
+    // atribute the ranges to the correct fields
+    let min:Option<Version> = (*map.get(&Op::Ge).unwrap_or(&vec![])).first().cloned();
+    let max:Option<Version> = (*map.get(&Op::Lt).unwrap_or(&vec![])).last().cloned();
+    let except = map.get(&Op::Ne).unwrap_or(&vec![]).clone();
+    let include = map.get(&Op::Eq).unwrap_or(&vec![]).clone();
     Range { //Note: this can return an invalid range, that's why we have is_valid
       min,
       max,
@@ -287,16 +287,16 @@ impl Range {
   }
 
   fn sort_vec(ranges: Vec<(Op, Version)>) -> Vec<(Op, Version)> {
-    // Sort the ranges by version number
+    // Expand tilde, caret, le and gt ranges to simple lt and ge ranges, and sort them ranges by version number,
 
-    let mut ranges = Self.mixed_vec_to_stand_vec(ranges);
+    let mut ranges = Self::mixed_vec_to_stand_vec(ranges);
     ranges.sort_by(|(_, a), (_, b)| a.cmp(&b));
     ranges
   }
 
-  //noinspection RsUnresolvedReference
   fn parse(range: &str) -> Result<Self, ParseError> {
-    let range: Vec<(Op, Version)>  = version_parser::rangesParser::new().parse(range).unwrap_or_else(|_| return Err(ParseError::Range));
+    todo!("parse range");
+    let range: Vec<(Op, Version)> = Default::default();
     Ok(Self::from_ver_vec(range))
   }
 
@@ -326,6 +326,9 @@ impl Range {
       (Op::Lt, Version::new(version.major, version.minor, version.patch + 1, None, None, None)),
     ]
   }
+
+  fn le_range_to_vec(version:Version) ->  Vec<(Op, Version)> {Self::le_range_to_lt(version)}
+
   fn gt_range_to_ge(version: Version) -> Vec<(Op, Version)> {
     // >1.2.3 -> >=1.2.4
     // >1.2 -> >=1.2.1
@@ -335,17 +338,19 @@ impl Range {
     ]
   }
 
+  fn gt_range_to_vec(version:Version) ->  Vec<(Op, Version)> {Self::gt_range_to_ge(version)}
 }
 
+#[derive(PartialEq, Eq, Hash)]
 pub enum Op {
-  Eq,    //==
-  Ne,    //!=
-  Gt,    //>
-  Lt,    //<
-  Ge,    //>=
-  Le,    //<=
-  Tilde, //~
-  Caret  //^
+  Eq,    // ==
+  Ne,    // !=
+  Gt,    // >
+  Lt,    // <
+  Ge,    // >=
+  Le,    // <=
+  Tilde, // ~
+  Caret  // ^
 }
 
 impl Op {
