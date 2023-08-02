@@ -29,34 +29,52 @@ impl Version {
     let version: Self = parse_version(version).map_err(|_| ParseError::Version)?;
     Ok(version)
   }
-  pub fn new(
+  // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=d78be90c82a7b80c949f30b5befcd6c2
+  pub fn new_w_extra<S:Into<String>>(
     major: u32,
     minor: u32,
     patch: u32,
     //1.1.0.1.5 < 1.1.0.1.6, 1.1.0.1.5 > 1.1.0, 1.1.0.0.0 > 1.1.0
-    extra_version: Option<String>,
+    extra_version: Option<S>,
     // 1.1.0-rc.1 < 1.1.0-rc.2, 1-a < 1-b, 1.1.0-rc.1 <= 1.1.0
     // # Pre-release-note
     // é menor que ele mas no range é igual, tipo uma espécie de epsilon
     // isto é porque o range espera-se que por exemplo >= 1.0, < 2.0 não inclua 2.0-alpha
     // embora tecnicamente inclui pq é antes
     // ainda assim quando for para comparar versões, 2.0-alpha é menor que 2.0 na mesma (por exemplo pra atualizar)
-    pre_release: Option<String>,
+    pre_release: Option<S>,
     //1.1.0+build.1 = 1.1.0+build.2, 1.1.0+build.1 = 1.1.0
-    build: Option<String>
+    build: Option<S>
   ) -> Self {
+    String::from("Hello").to_string();
     Self {
       major,
       minor,
       patch,
-      extra_version,
-      pre_release,
-      build,
+      extra_version: extra_version.map(|s| s.into()),
+      pre_release: pre_release.map(|s| s.into()),
+      build: build.map(|s| s.into()),
     }
   }
+
+
+  /// Use new_w_extra if you need build or pre_release or extra_version
+  /// Or use new(...).change_...()
+  pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+    Self {
+      major,
+      minor,
+      patch,
+      extra_version: None,
+      pre_release: None,
+      build: None,
+    }
+  }
+
   //could be a cool macro
   //maybe remove if not used anywhere
-  fn with_major(&self, major: u32) -> Self {
+  /// These are useful to clone a version and change only one of the fields
+  pub fn with_major(&self, major: u32) -> Self {
     Self {
       major,
       minor: self.minor,
@@ -66,7 +84,7 @@ impl Version {
       build: self.build.clone(),
     }
   }
-  fn with_minor(&self, minor: u32) -> Self {
+  pub fn with_minor(&self, minor: u32) -> Self {
     Self {
       major: self.major,
       minor,
@@ -76,7 +94,7 @@ impl Version {
       build: self.build.clone(),
     }
   }
-  fn with_patch(&self, patch: u32) -> Self {
+  pub fn with_patch(&self, patch: u32) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
@@ -86,36 +104,78 @@ impl Version {
       build: self.build.clone(),
     }
   }
-  fn with_extra_version(&self, extra_version: Option<String>) -> Self {
+  pub fn with_extra_version(&self, extra_version: Option<impl Into<String>>) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
       patch: self.patch,
-      extra_version,
+      extra_version: extra_version.map(|s| s.into()),
       pre_release: self.pre_release.clone(),
       build: self.build.clone(),
     }
   }
-  fn with_pre_release(&self, pre_release: Option<String>) -> Self {
+  pub fn with_extra(&self, extra_version: Option<impl Into<String>>) -> Self {
+    self.with_extra_version(extra_version)
+  }
+  pub fn with_pre_release(&self, pre_release: Option<impl Into<String>>) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
       patch: self.patch,
       extra_version: self.extra_version.clone(),
-      pre_release,
+      pre_release: pre_release.map(|s| s.into()),
       build: self.build.clone(),
     }
   }
-  fn with_build(&self, build: Option<String>) -> Self {
+  pub fn with_pre(&self, pre_release: Option<impl Into<String>>) -> Self {
+    self.with_pre_release(pre_release)
+  }
+  pub fn with_build(&self, build: Option<impl Into<String>>) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
       patch: self.patch,
       extra_version: self.extra_version.clone(),
       pre_release: self.pre_release.clone(),
-      build,
+      build: build.map(|s| s.into()),
     }
   }
+
+
+  /// These are useful to change only one of the fields, without cloning
+  pub fn major(&mut self, major: u32) -> &mut Self {
+    self.major = major;
+    self
+  }
+  pub fn minor(&mut self, minor: u32) -> &mut Self {
+    self.minor = minor;
+    self
+  }
+  pub fn patch(&mut self, patch: u32) -> &mut Self {
+    self.patch = patch;
+    self
+  }
+  pub fn extra_version(&mut self, extra_version: Option<impl Into<String>>) -> &mut Self {
+    self.extra_version = extra_version.map(|s| s.into());
+    self
+  }
+  pub fn extra(&mut self, extra_version: Option<impl Into<String>>) -> &mut Self {
+    self.extra_version(extra_version)
+  }
+  pub fn pre_release(&mut self, pre_release: Option<impl Into<String>>) -> &mut Self {
+    self.pre_release = pre_release.map(|s| s.into());
+    self
+  }
+  pub fn pre(&mut self, pre_release: Option<impl Into<String>>) -> &mut Self {
+    self.pre_release(pre_release)
+  }
+  pub fn build(&mut self, build: Option<impl Into<String>>) -> &mut Self {
+    self.build = build.map(|s| s.into());
+    self
+  }
+
+
+
 
   fn is(&self, other: &Self) -> bool {
     // comparasion with everything, and not equivelant
@@ -306,7 +366,7 @@ impl Range {
     // ~1 -> >=1.0.0 <1.1.0, since 1 = 1.0.0
     vec![
       (Op::Ge, version.clone()),
-      (Op::Lt, Version::new(version.major, version.minor + 1, 0, None, None, None)),
+      (Op::Lt, Version::new(version.major, version.minor + 1, 0)),
     ]
   }
   fn caret_range_to_vec(version: Version) -> Vec<(Op, Version)> {
@@ -315,7 +375,7 @@ impl Range {
     // ^1 -> >=1.0.0 <2.0.0, since 1 = 1.0.0
     vec![
       (Op::Ge, version.clone()),
-      (Op::Lt, Version::new(version.major + 1, 0, 0, None, None, None)),
+      (Op::Lt, Version::new(version.major + 1, 0, 0)),
     ]
   }
   fn le_range_to_lt(version: Version) -> Vec<(Op, Version)> {
@@ -323,7 +383,7 @@ impl Range {
     // <=1.2 -> <1.2.1
     // <=1 -> <1.0.1
     vec![
-      (Op::Lt, Version::new(version.major, version.minor, version.patch + 1, None, None, None)),
+      (Op::Lt, Version::new(version.major, version.minor, version.patch + 1)),
     ]
   }
 
@@ -334,7 +394,7 @@ impl Range {
     // >1.2 -> >=1.2.1
     // >1 -> >=1.0.1
     vec![
-      (Op::Ge, Version::new(version.major, version.minor, version.patch + 1, None, None, None)),
+      (Op::Ge, Version::new(version.major, version.minor, version.patch + 1)),
     ]
   }
 
