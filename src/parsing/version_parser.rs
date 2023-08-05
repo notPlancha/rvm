@@ -2,15 +2,15 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
-use crate::parsing::grammer::the_parser::{parse_version};
+use crate::parsing::grammer::the_parser::{parse_version, parse_range};
 
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ParseError {
   #[error("error in parsing version")]
-  Version,
+  InvalidVersion,
   #[error("error in parsing range")]
-  Range,
+  InvalidRange,
 }
 
 
@@ -26,7 +26,7 @@ pub struct Version {
 
 impl Version {
   pub fn parse(version: &str) -> Result<Self, ParseError> {
-    let version: Self = parse_version(version).map_err(|_| ParseError::Version)?;
+    let version: Self = parse_version(version).map_err(|_| ParseError::InvalidVersion)?;
     Ok(version)
   }
   // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=d78be90c82a7b80c949f30b5befcd6c2
@@ -61,6 +61,17 @@ impl Version {
   /// Use new_w_extra if you need build or pre_release or extra_version
   /// Or use new(...).change_...()
   pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+    Self {
+      major,
+      minor,
+      patch,
+      extra_version: None,
+      pre_release: None,
+      build: None,
+    }
+  }
+
+  pub const fn new_const(major: u32, minor: u32, patch: u32) -> Self {
     Self {
       major,
       minor,
@@ -264,14 +275,16 @@ impl Default for Version {
   }
 }
 
-struct Range {
-  min: Option<Version>, //inclusive
-  max: Option<Version>, //exclusive, because it's hard to go back to the previous version
-  except: Vec<Version>,
-  include: Vec<Version>,
+#[derive(Default, PartialEq, Eq, Debug)]
+pub struct Range { //TODO should implement exclusion ranges?
+  pub min: Option<Version>, //inclusive
+  pub max: Option<Version>, //exclusive, because it's hard to go back to the previous version
+  pub except: Vec<Version>,
+  pub include: Vec<Version>
 }
 
 impl ToString for Range {
+
   fn to_string(&self) -> String {
     if self.is_any() {
       return "*".to_string();
@@ -316,7 +329,7 @@ impl Range {
     map
   }
 
-  fn from_ver_vec(ranges: Vec<(Op, Version)>) -> Self {
+  pub fn from_ver_vec(ranges: Vec<(Op, Version)>) -> Self {
     // Sort the ranges by version number
     let mut ranges:Vec<(Op, Version)> = Self::sort_vec(ranges);
     // separate the ranges by operator
@@ -354,10 +367,9 @@ impl Range {
     ranges
   }
 
-  fn parse(range: &str) -> Result<Self, ParseError> {
-    todo!("parse range");
-    let range: Vec<(Op, Version)> = Default::default();
-    Ok(Self::from_ver_vec(range))
+  pub fn parse(range: &str) -> Result<Self, ParseError> {
+    let range : Self = parse_range(range).map_err(|_| ParseError::InvalidRange)?;
+    Ok(range)
   }
 
   fn tilde_range_to_vec(version: Version) -> Vec<(Op, Version)> {
@@ -414,7 +426,7 @@ pub enum Op {
 }
 
 impl Op {
-  fn from_str(op: &str) -> Result<Self, ParseError> {
+  pub fn from_str(op: &str) -> Result<Self, ParseError> {
     match op {
       "==" | "=" | "" => Ok(Self::Eq),
       "!=" => Ok(Self::Ne),
@@ -424,7 +436,7 @@ impl Op {
       "<=" => Ok(Self::Le),
       "~" => Ok(Self::Tilde),
       "^" => Ok(Self::Caret),
-      _ => Err(ParseError::Range)
+      _ => Err(ParseError::InvalidRange)
     }
   }
 }
