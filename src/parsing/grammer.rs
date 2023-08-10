@@ -48,5 +48,6 @@ peg::parser!( pub grammar the_parser() for str {
     = o:op() " "* v:version() " "* { (o,v) }
 
   rule op() -> Op
-    = o:$("" / " " / "==" / "!=" / "<=" / ">=" / "<" / ">" / "~" / "^") { Op::from_str(o).unwrap() }
+    = o:$("==" / "!=" / "<=" / ">=" / "=" / "<" / ">" / "~" / "^" / " " / "") { Op::from_str(o).unwrap() }
+      // => and =< will fail, but that's ok
 });

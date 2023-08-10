@@ -58,11 +58,11 @@ mod tests {
   #[test]
   fn parse_rang() {
     const v: Version = Version::new_const(1, 2, 3);
-    assert_eq!(r(">1.2.3"), Range {
+    assert_eq!(r(">=1.2.3"), Range {
       min: Some(v),
       ..Default::default()
     });
-    assert_eq!(r(">=1.2.3"), Range {
+    assert_eq!(r(">1.2.3"), Range {
       min: Some(v.with_patch(4)),
       ..Default::default()
     });
