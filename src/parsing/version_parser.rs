@@ -1,21 +1,20 @@
-#[macro_use] extern crate lalrpop_util;
-
 use std::cmp::Ordering;
-use std::fmt::Display;
+use std::collections::HashMap;
 use std::str::FromStr;
-use lalrpop_util::lalrpop_mod;
 use thiserror::Error;
+use crate::parsing::grammer::the_parser::{parse_version, parse_range};
 
-lalrpop_mod!(pub version_parser);
 
-#[derive(Error, Debug)]
-enum ParseError {
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum ParseError {
   #[error("error in parsing version")]
-  Version,
+  InvalidVersion,
   #[error("error in parsing range")]
-  Range,
+  InvalidRange,
 }
 
+
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Version {
   major: u32,
   minor: u32,
@@ -26,39 +25,67 @@ pub struct Version {
 }
 
 impl Version {
-  //noinspection RsUnresolvedReference
-  fn parse(version: &str) -> Result<Self, ParseError> {
-    let version: Self = version_parser::versionParser::new().parse(version).unwrap_or_else(|_| return Err(ParseError::Version));
+  pub fn parse(version: &str) -> Result<Self, ParseError> {
+    let version: Self = parse_version(version).map_err(|_| ParseError::InvalidVersion)?;
     Ok(version)
   }
-  fn new(
+  // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=d78be90c82a7b80c949f30b5befcd6c2
+  pub fn new_w_extra<S:Into<String>>(
     major: u32,
     minor: u32,
     patch: u32,
     //1.1.0.1.5 < 1.1.0.1.6, 1.1.0.1.5 > 1.1.0, 1.1.0.0.0 > 1.1.0
-    extra_version: Option<String>,
+    extra_version: Option<S>,
     // 1.1.0-rc.1 < 1.1.0-rc.2, 1-a < 1-b, 1.1.0-rc.1 <= 1.1.0
-    /// # Pre-release-note
-    /// é menor que ele mas no range é igual, tipo uma espécie de epsilon
-    /// isto é porque o range espera-se que por exemplo >= 1.0, < 2.0 não inclua 2.0-alpha
-    /// embora tecnicamente inclui pq é antes
-    /// ainda assim quando for para comparar versões, 2.0-alpha é menor que 2.0 na mesma (por exemplo pra atualizar)
-    pre_release: Option<String>,
+    // # Pre-release-note
+    // é menor que ele mas no range é igual, tipo uma espécie de epsilon
+    // isto é porque o range espera-se que por exemplo >= 1.0, < 2.0 não inclua 2.0-alpha
+    // embora tecnicamente inclui pq é antes
+    // ainda assim quando for para comparar versões, 2.0-alpha é menor que 2.0 na mesma (por exemplo pra atualizar)
+    pre_release: Option<S>,
     //1.1.0+build.1 = 1.1.0+build.2, 1.1.0+build.1 = 1.1.0
-    build: Option<String>
+    build: Option<S>
   ) -> Self {
+    String::from("Hello").to_string();
     Self {
       major,
       minor,
       patch,
-      extra_version,
-      pre_release,
-      build,
+      extra_version: extra_version.map(|s| s.into()),
+      pre_release: pre_release.map(|s| s.into()),
+      build: build.map(|s| s.into()),
     }
   }
+
+
+  /// Use new_w_extra if you need build or pre_release or extra_version
+  /// Or use new(...).change_...()
+  pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+    Self {
+      major,
+      minor,
+      patch,
+      extra_version: None,
+      pre_release: None,
+      build: None,
+    }
+  }
+
+  pub const fn new_const(major: u32, minor: u32, patch: u32) -> Self {
+    Self {
+      major,
+      minor,
+      patch,
+      extra_version: None,
+      pre_release: None,
+      build: None,
+    }
+  }
+
   //could be a cool macro
   //maybe remove if not used anywhere
-  fn with_major(&self, major: u32) -> Self {
+  /// These are useful to clone a version and change only one of the fields
+  pub fn with_major(&self, major: u32) -> Self {
     Self {
       major,
       minor: self.minor,
@@ -68,7 +95,7 @@ impl Version {
       build: self.build.clone(),
     }
   }
-  fn with_minor(&self, minor: u32) -> Self {
+  pub fn with_minor(&self, minor: u32) -> Self {
     Self {
       major: self.major,
       minor,
@@ -78,7 +105,7 @@ impl Version {
       build: self.build.clone(),
     }
   }
-  fn with_patch(&self, patch: u32) -> Self {
+  pub fn with_patch(&self, patch: u32) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
@@ -88,36 +115,78 @@ impl Version {
       build: self.build.clone(),
     }
   }
-  fn with_extra_version(&self, extra_version: Option<String>) -> Self {
+  pub fn with_extra_version(&self, extra_version: Option<impl Into<String>>) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
       patch: self.patch,
-      extra_version,
+      extra_version: extra_version.map(|s| s.into()),
       pre_release: self.pre_release.clone(),
       build: self.build.clone(),
     }
   }
-  fn with_pre_release(&self, pre_release: Option<String>) -> Self {
+  pub fn with_extra(&self, extra_version: Option<impl Into<String>>) -> Self {
+    self.with_extra_version(extra_version)
+  }
+  pub fn with_pre_release(&self, pre_release: Option<impl Into<String>>) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
       patch: self.patch,
       extra_version: self.extra_version.clone(),
-      pre_release,
+      pre_release: pre_release.map(|s| s.into()),
       build: self.build.clone(),
     }
   }
-  fn with_build(&self, build: Option<String>) -> Self {
+  pub fn with_pre(&self, pre_release: Option<impl Into<String>>) -> Self {
+    self.with_pre_release(pre_release)
+  }
+  pub fn with_build(&self, build: Option<impl Into<String>>) -> Self {
     Self {
       major: self.major,
       minor: self.minor,
       patch: self.patch,
       extra_version: self.extra_version.clone(),
       pre_release: self.pre_release.clone(),
-      build,
+      build: build.map(|s| s.into()),
     }
   }
+
+
+  /// These are useful to change only one of the fields, without cloning
+  pub fn major(&mut self, major: u32) -> &mut Self {
+    self.major = major;
+    self
+  }
+  pub fn minor(&mut self, minor: u32) -> &mut Self {
+    self.minor = minor;
+    self
+  }
+  pub fn patch(&mut self, patch: u32) -> &mut Self {
+    self.patch = patch;
+    self
+  }
+  pub fn extra_version(&mut self, extra_version: Option<impl Into<String>>) -> &mut Self {
+    self.extra_version = extra_version.map(|s| s.into());
+    self
+  }
+  pub fn extra(&mut self, extra_version: Option<impl Into<String>>) -> &mut Self {
+    self.extra_version(extra_version)
+  }
+  pub fn pre_release(&mut self, pre_release: Option<impl Into<String>>) -> &mut Self {
+    self.pre_release = pre_release.map(|s| s.into());
+    self
+  }
+  pub fn pre(&mut self, pre_release: Option<impl Into<String>>) -> &mut Self {
+    self.pre_release(pre_release)
+  }
+  pub fn build(&mut self, build: Option<impl Into<String>>) -> &mut Self {
+    self.build = build.map(|s| s.into());
+    self
+  }
+
+
+
 
   fn is(&self, other: &Self) -> bool {
     // comparasion with everything, and not equivelant
@@ -146,18 +215,6 @@ impl FromStr for Version {
     Self::parse(s)
   }
 }
-
-impl PartialEq for Version {
-  fn eq(&self, other: &Self) -> bool {
-    self.major == other.major
-      && self.minor == other.minor
-      && self.patch == other.patch
-      && self.extra_version == other.extra_version
-      && self.pre_release == other.pre_release
-  }
-}
-
-impl Eq for Version {}
 
 impl PartialOrd<Version> for Version {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -205,15 +262,29 @@ impl ToString for Version {
   }
 }
 
+impl Default for Version {
+  fn default() -> Self {
+    Self {
+      major: 1,
+      minor: 0,
+      patch: 0,
+      extra_version: None,
+      pre_release: None,
+      build: None,
+    }
+  }
+}
 
-struct Range {
-  min: Option<Version>, //inclusive
-  max: Option<Version>, //exclusive, because it's hard to go back to the previous version
-  except: Vec<Version>,
-  include: Vec<Version>,
+#[derive(Default, PartialEq, Eq, Debug)]
+pub struct Range { //TODO should implement exclusion ranges?
+  pub min: Option<Version>, //inclusive
+  pub max: Option<Version>, //exclusive, because it's hard to go back to the previous version
+  pub except: Vec<Version>,
+  pub include: Vec<Version>
 }
 
 impl ToString for Range {
+
   fn to_string(&self) -> String {
     if self.is_any() {
       return "*".to_string();
@@ -249,23 +320,25 @@ impl Range {
   fn is_exact_match(&self) -> bool { // min == max or just includes one version
     todo!()
   }
-  fn from_ver_vec(ranges: Vec<(Op, Version)>) -> Self {
+
+  fn separate_ops(ranges: Vec<(Op, Version)>) -> HashMap<Op, Vec<Version>> {
+    let mut map = HashMap::new();
+    for (op, version) in ranges {
+      map.entry(op).or_insert_with(Vec::new).push(version);
+    }
+    map
+  }
+
+  pub fn from_ver_vec(ranges: Vec<(Op, Version)>) -> Self {
     // Sort the ranges by version number
-    let mut ranges = Self::sort_vec(ranges);
-    // get lowest ge, and highest lt (since it's sorted)
-    let min = ranges.first().map(|(_, v)| *v);
-    let max = ranges.last().map(|(_, v)| *v);
-    // get all the except and include (Ne and Eq)
-    let except: Vec<_> = ranges
-      .into_iter()
-      .filter(|(op, _)| *op == Op::Ne)
-      .map(|(_, v)| v)
-      .collect();
-    let include: Vec<_> = ranges
-      .into_iter()
-      .filter(|(op, _)| *op == Op::Eq)
-      .map(|(_, v)| v)
-      .collect();
+    let mut ranges:Vec<(Op, Version)> = Self::sort_vec(ranges);
+    // separate the ranges by operator
+    let mut map:HashMap<Op, Vec<Version>> = Self::separate_ops(ranges);
+    // atribute the ranges to the correct fields
+    let min:Option<Version> = (*map.get(&Op::Ge).unwrap_or(&vec![])).first().cloned();
+    let max:Option<Version> = (*map.get(&Op::Lt).unwrap_or(&vec![])).last().cloned();
+    let except = map.get(&Op::Ne).unwrap_or(&vec![]).clone();
+    let include = map.get(&Op::Eq).unwrap_or(&vec![]).clone();
     Range { //Note: this can return an invalid range, that's why we have is_valid
       min,
       max,
@@ -287,17 +360,16 @@ impl Range {
   }
 
   fn sort_vec(ranges: Vec<(Op, Version)>) -> Vec<(Op, Version)> {
-    // Sort the ranges by version number
+    // Expand tilde, caret, le and gt ranges to simple lt and ge ranges, and sort them ranges by version number,
 
-    let mut ranges = Self.mixed_vec_to_stand_vec(ranges);
+    let mut ranges = Self::mixed_vec_to_stand_vec(ranges);
     ranges.sort_by(|(_, a), (_, b)| a.cmp(&b));
     ranges
   }
 
-  //noinspection RsUnresolvedReference
-  fn parse(range: &str) -> Result<Self, ParseError> {
-    let range: Vec<(Op, Version)>  = version_parser::rangesParser::new().parse(range).unwrap_or_else(|_| return Err(ParseError::Range));
-    Ok(Self::from_ver_vec(range))
+  pub fn parse(range: &str) -> Result<Self, ParseError> {
+    let range : Self = parse_range(range).map_err(|_| ParseError::InvalidRange)?;
+    Ok(range)
   }
 
   fn tilde_range_to_vec(version: Version) -> Vec<(Op, Version)> {
@@ -306,7 +378,7 @@ impl Range {
     // ~1 -> >=1.0.0 <1.1.0, since 1 = 1.0.0
     vec![
       (Op::Ge, version.clone()),
-      (Op::Lt, Version::new(version.major, version.minor + 1, 0, None, None, None)),
+      (Op::Lt, Version::new(version.major, version.minor + 1, 0)),
     ]
   }
   fn caret_range_to_vec(version: Version) -> Vec<(Op, Version)> {
@@ -315,7 +387,7 @@ impl Range {
     // ^1 -> >=1.0.0 <2.0.0, since 1 = 1.0.0
     vec![
       (Op::Ge, version.clone()),
-      (Op::Lt, Version::new(version.major + 1, 0, 0, None, None, None)),
+      (Op::Lt, Version::new(version.major + 1, 0, 0)),
     ]
   }
   fn le_range_to_lt(version: Version) -> Vec<(Op, Version)> {
@@ -323,33 +395,38 @@ impl Range {
     // <=1.2 -> <1.2.1
     // <=1 -> <1.0.1
     vec![
-      (Op::Lt, Version::new(version.major, version.minor, version.patch + 1, None, None, None)),
+      (Op::Lt, Version::new(version.major, version.minor, version.patch + 1)),
     ]
   }
+
+  fn le_range_to_vec(version:Version) ->  Vec<(Op, Version)> {Self::le_range_to_lt(version)}
+
   fn gt_range_to_ge(version: Version) -> Vec<(Op, Version)> {
     // >1.2.3 -> >=1.2.4
     // >1.2 -> >=1.2.1
     // >1 -> >=1.0.1
     vec![
-      (Op::Ge, Version::new(version.major, version.minor, version.patch + 1, None, None, None)),
+      (Op::Ge, Version::new(version.major, version.minor, version.patch + 1)),
     ]
   }
 
+  fn gt_range_to_vec(version:Version) ->  Vec<(Op, Version)> {Self::gt_range_to_ge(version)}
 }
 
+#[derive(PartialEq, Eq, Hash)]
 pub enum Op {
-  Eq,    //==
-  Ne,    //!=
-  Gt,    //>
-  Lt,    //<
-  Ge,    //>=
-  Le,    //<=
-  Tilde, //~
-  Caret  //^
+  Eq,    // ==
+  Ne,    // !=
+  Gt,    // >
+  Lt,    // <
+  Ge,    // >=
+  Le,    // <=
+  Tilde, // ~
+  Caret  // ^
 }
 
 impl Op {
-  fn from_str(op: &str) -> Result<Self, ParseError> {
+  pub fn from_str(op: &str) -> Result<Self, ParseError> {
     match op {
       "==" | "=" | "" => Ok(Self::Eq),
       "!=" => Ok(Self::Ne),
@@ -359,7 +436,7 @@ impl Op {
       "<=" => Ok(Self::Le),
       "~" => Ok(Self::Tilde),
       "^" => Ok(Self::Caret),
-      _ => Err(ParseError::Range)
+      _ => Err(ParseError::InvalidRange)
     }
   }
 }
