@@ -122,13 +122,13 @@ mod tests {
     });
 
     // multiple versions
-    assert_eq!(r("1.2.3 1.2.4"), Range {
-      include: vec![Version::new(1, 2, 3).to_owned(), Version::new(1, 2, 4).to_owned()],
-      ..Default::default()
-    });
     assert_eq!(r(">1.2.3 <1.2.5"), Range {
       min: Some(Version::new(1, 2, 4).to_owned()),
       max: Some(Version::new(1, 2, 5).to_owned()),
+      ..Default::default()
+    });
+    assert_eq!(r("1.2.3 1.2.4"), Range {
+      include: vec![Version::new(1, 2, 3).to_owned(), Version::new(1, 2, 4).to_owned()],
       ..Default::default()
     });
     assert_eq!(r(">=1.2.3 <=1.2.5"), Range {
