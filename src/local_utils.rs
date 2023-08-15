@@ -4,8 +4,12 @@ use lazy_static::lazy_static;
 use reqwest::blocking::Response;
 use reqwest::StatusCode;
 use crate::utils::{response_to_file_path, ToAbsolute};
-
-pub fn install_version(mut path: PathBuf, version: String) {
+use cli_prompts::{
+  DisplayPrompt,
+  prompts::{Confirmation, Input},
+  style::{Color, ConfirmationStyle, Formatting, InputStyle, LabelStyle},
+};
+pub fn install_version(mut path: PathBuf, version: &String) {
   path = path.to_absolute();
   let path_str = path.to_str().unwrap();
   let installer = download_R(version, None).unwrap();
@@ -19,11 +23,11 @@ pub fn install_version(mut path: PathBuf, version: String) {
 }
 
 #[allow(non_snake_case)]
-pub fn download_R(version: String, dest: Option<PathBuf>) -> Result<PathBuf, StatusCode>{
+pub fn download_R(version: &String, dest: Option<PathBuf>) -> Result<PathBuf, StatusCode>{
   // returns the path for the  exe installer
   // dest is the Windows temp folder if is None
   //TODO change to be possible to change CRAN
-  let url: &String = &format!("https://cran.r-project.org/bin/windows/base/old/{}/R-{}-win.exe", version, version);
+  let url: &String = &format!("https://cran.r-project.org/bin/windows/base/old/{}/R-{}-win.exe", version, version); //TODO change it to toggle between archived and not (20 versions behind thye change url)
   request!(head, url); //head request to check if the file exists
   let response: Response = request!(get, url); //get request to download the file
   let destination = dest.unwrap_or(std::env::temp_dir());
@@ -68,7 +72,8 @@ pub fn get_latest() -> Result<String, StatusCode> {
   Ok(String::from(version))
 }
 
-//lazy static for the client
+// lazy static is here for singleton-like patterns
 lazy_static!{
+  // http client
   static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::new();
 }

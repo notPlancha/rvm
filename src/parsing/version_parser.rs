@@ -1,6 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use thiserror::Error;
 use crate::parsing::grammer::the_parser::{parse_version, parse_range};
 
@@ -14,7 +17,7 @@ pub enum ParseError {
 }
 
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub struct Version {
   major: u32,
   minor: u32,
@@ -207,8 +210,14 @@ impl Version {
       || self.pre_release < other.pre_release
   }
 }
-
 impl FromStr for Version {
+  type Err = ParseError;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Self::parse(s)
+  }
+}
+impl FromStr for Range {
   type Err = ParseError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -246,8 +255,8 @@ impl Ord for Version {
   }
 }
 
-impl ToString for Version {
-  fn to_string(&self) -> String {
+impl Display for Version {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     let mut s = format!("{}.{}.{}", self.major, self.minor, self.patch);
     if let Some(extra_version) = &self.extra_version {
       s.push_str(&format!(".{}", extra_version));
@@ -258,10 +267,15 @@ impl ToString for Version {
     if let Some(build) = &self.build {
       s.push_str(&format!("+{}", build));
     }
-    s
+    write!(f, "{}", s)
   }
 }
 
+// impl Display for Version {
+//   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//     write!(f, "{}", self.to_string())
+//   }
+// }
 impl Default for Version {
   fn default() -> Self {
     Self {
@@ -275,7 +289,7 @@ impl Default for Version {
   }
 }
 
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub struct Range { //TODO should implement exclusion ranges?
   pub min: Option<Version>, //inclusive
   pub max: Option<Version>, //exclusive, because it's hard to go back to the previous version
@@ -283,11 +297,11 @@ pub struct Range { //TODO should implement exclusion ranges?
   pub include: Vec<Version>
 }
 
-impl ToString for Range {
+impl Display for Range {
 
-  fn to_string(&self) -> String {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     if self.is_any() {
-      return "*".to_string();
+      return write!(f, "*");
     }
     let mut s = String::new();
     if let Some(min) = &self.min {
@@ -303,16 +317,21 @@ impl ToString for Range {
       s.push_str(&format!("={},", include.to_string()));
     }
     s.pop(); //remove the last comma
-    s
+    write!(f, "{}", s)
   }
 }
+
 
 impl Range {
   fn contains(&self, version: Version) -> bool {
     todo!()
   }
   fn is_any(&self) -> bool { // is empty or is just >= 0.0.0
-    todo!()
+    (self.min.clone().is_none() || self.min.clone().unwrap() == Version::new(0, 0, 0))
+      && self.max.is_none()
+      && self.except.is_empty()
+      && self.include.is_empty()
+    //maybe when include is something and min is 0.0.0 it should any but it's fine
   }
   fn is_valid(&self) -> bool { // is not empty and min <= max and is not < 0.0.0
     todo!()

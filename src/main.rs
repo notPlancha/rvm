@@ -9,14 +9,14 @@ use clap::Parser;
 use args::{Cli, Action};
 
 fn main() {
-  let args = Cli::parse();
+  let args = &Cli::parse();
   // switch functions based on command
-  let action = args.action;
-  match action {
+  match &args.action {
     Action::Init {rversion, path} =>
       actions::init::main(
         String::from(rversion),
-        Path::new(&path)
+        Path::new(&path),
+        args
       ),
   }
 }
@@ -24,6 +24,7 @@ fn main() {
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
+  use crate::local_utils::get_latest;
   use crate::parsing::version_parser::{ParseError, Range};
   use crate::parsing::version_parser::Version;
   #[test]
@@ -50,6 +51,12 @@ mod tests {
     assert_eq!(Version::parse("1+windows.1+debian"), Err(ParseError::InvalidVersion));
     assert_eq!(Version::parse("-1.2.3"), Err(ParseError::InvalidVersion));
     assert_eq!(Version::parse("+1.2.3"), Err(ParseError::InvalidVersion));
+  }
+  #[test]
+  #[allow(non_snake_case)]
+  fn parse_R_ver() {
+    // needs internet connection or will fail
+    p(get_latest().unwrap().as_str());
   }
   fn p(version: &str) -> Version {
     dbg!(version);

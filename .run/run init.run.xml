@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="rvm init" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run -- init" />
+  <configuration default="false" name="run init" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+    <option name="command" value="run -- -y --dry-run init -R latest" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$/temp" />
     <option name="emulateTerminal" value="false" />
     <option name="channel" value="DEFAULT" />
@@ -13,8 +13,8 @@
     <option name="isRedirectInput" value="false" />
     <option name="redirectInputPath" value="" />
     <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="make temp" run_configuration_type="BatchConfigurationType" />
       <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="create temp" run_configuration_type="ShConfigurationType" />
     </method>
   </configuration>
 </component>
