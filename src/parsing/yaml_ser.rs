@@ -45,7 +45,7 @@ impl Default for Env {
       name: Some("My project".to_owned()),
       description: Some("My project description".to_owned()),
       r#type: Some(ProjectType::default()),
-      version: None,
+      version: Some("1.0.0".to_string()),
       rversion: Rversion::from_str(&latest).unwrap_or_else(|err| panic!("Failed to parse version: {:?}", err)),
       dependencies: HashMap::from([
         ("pak".to_owned(), "^0.5.1".to_owned())
