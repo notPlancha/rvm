@@ -1,3 +1,5 @@
+This project came to a standstill because I decided to change strategy (and language). Check my profile for an alternative (or wait until I'll update the readme) 
+
 # rvm
 My attempt at a Rlang Version (and package) Manager (WIP)
 

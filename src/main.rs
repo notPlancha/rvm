@@ -37,7 +37,10 @@ fn main() {
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
+  use peg::str::LineCol;
   use crate::local_utils::get_latest_R;
+  use crate::parsing::grammer::Dependency;
+  use crate::parsing::grammer::the_parser::{parse_dependencies, parse_dependency};
   use crate::parsing::version_parser::{ParseError, Range};
   use crate::parsing::version_parser::Version;
   #[test]
@@ -184,6 +187,95 @@ mod tests {
     dbg!(range);
     Range::parse(range).unwrap_or_else(|_| panic!("Failed to parse range: {}", range))
   }
+  #[test]
+  fn parse_deps() {
+    assert_eq!(parse_dependency("R (>= 4.0)"), Ok(Dependency {
+      name: "R".to_owned(),
+      range: Range {
+        min: Some(Version::new(4, 0, 0)),
+        ..Default::default()
+      }
+    }));
+    assert_eq!(parse_dependencies("R (>= 4.0)"), Ok(vec![Dependency {
+      name: "R".to_owned(),
+      range: Range {
+        min: Some(Version::new(4, 0, 0)),
+        ..Default::default()
+      }
+    }]));
+    assert_eq!(parse_dependencies("R (>= 4.0), grDevices, graphics, stats, utils"), Ok(vec![
+      Dependency {
+        name: "R".to_owned(),
+        range: Range {
+          min: Some(Version::new(4, 0, 0)),
+          ..Default::default()
+        }
+      },
+      Dependency {
+        name: "grDevices".to_owned(),
+        range: Range::default()
+      },
+      Dependency {
+        name: "graphics".to_owned(),
+        range: Range::default()
+      },
+      Dependency {
+        name: "stats".to_owned(),
+        range: Range::default()
+      },
+      Dependency {
+        name: "utils".to_owned(),
+        range: Range::default()
+      },
+    ]));
+    assert_eq!(parse_dependencies("grDevices (>= 3.6.0), graphics (>= 3.6.0), stats (>= 3.6.0), utils (>= 3.6.0)"), Ok(vec![
+      Dependency {
+        name: "grDevices".to_owned(),
+        range: Range {
+          min: Some(Version::new(3, 6, 0)),
+          ..Default::default()
+        }
+      },
+      Dependency {
+        name: "graphics".to_owned(),
+        range: Range {
+          min: Some(Version::new(3, 6, 0)),
+          ..Default::default()
+        }
+      },
+      Dependency {
+        name: "stats".to_owned(),
+        range: Range {
+          min: Some(Version::new(3, 6, 0)),
+          ..Default::default()
+        }
+      },
+      Dependency {
+        name: "utils".to_owned(),
+        range: Range {
+          min: Some(Version::new(3, 6, 0)),
+          ..Default::default()
+        }
+      },
+    ]));
+    assert_eq!(parse_dependencies("test.package (>= 3.6.0), test.package2 (>= 3.6.0)"), Ok(vec![
+      Dependency {
+        name: "test.package".to_owned(),
+        range: Range {
+          min: Some(Version::new(3, 6, 0)),
+          ..Default::default()
+        }
+      },
+      Dependency {
+        name: "test.package2".to_owned(),
+        range: Range {
+          min: Some(Version::new(3, 6, 0)),
+          ..Default::default()
+        }
+      },
+    ]));
+  }
+
   //TODO test abput comparing versions
   //TODO test about ranging versions
 }

@@ -13,9 +13,7 @@ pub struct Cli {
   /// if true, don't ask for confirmation
   #[arg(short, long, global = true)]
   pub yes: bool, //TODO
-  /// simulate the action, don't actually do it
-  #[arg(long="dry-run", global = true)]
-  pub dry_run: bool, //TODO
+  //TODO maybe add a dry run
 }
 
 

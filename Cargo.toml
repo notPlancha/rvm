@@ -6,6 +6,8 @@ description = "R version (and package) manager"
 repository = "https://github.com/notPlancha/rvm"
 publish = false
 edition = "2021"
+license = "CC BY 4.0"
+rust-version = "1.71.1"
 
 [dependencies]
 clap = { version = "4.3.5", features = ["derive", "string"] }
@@ -13,12 +15,10 @@ reqwest = { version = "0.11.18", features = ["blocking"] }
 thiserror = "1.0.40"
 lazy_static = "1.4.0"
 tl = "0.7.7"
-regex = "1"
 path-clean = "1.0.1"
 duct = "0.13.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
-semver = "1.0.17"
 peg = "0.8.1"
 cli-prompts = "0.1.0"
 serde_with = "3.3"

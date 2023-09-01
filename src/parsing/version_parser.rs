@@ -17,7 +17,7 @@ pub enum ParseError {
 }
 
 
-#[derive(Clone, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
+#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub struct Version {
   major: u32,
   minor: u32,
@@ -28,8 +28,8 @@ pub struct Version {
 }
 
 impl Version {
-  pub fn parse(version: &str) -> Result<Self, ParseError> {
-    let version: Self = parse_version(version).map_err(|_| ParseError::InvalidVersion)?;
+  pub fn parse<S:Into<String>>(version: S) -> Result<Self, ParseError> {
+    let version: Self = parse_version(&version.into()).map_err(|_| ParseError::InvalidVersion)?;
     Ok(version)
   }
   // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=d78be90c82a7b80c949f30b5befcd6c2
@@ -289,7 +289,8 @@ impl Default for Version {
   }
 }
 
-#[derive(Default, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)] //default should be equal to *
+#[derive(Debug, Default, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)] //default should be equal to *
+// debug is needed for assert_eq
 pub struct Range { //TODO should implement exclusion ranges?
   pub min: Option<Version>, //inclusive
   pub max: Option<Version>, //exclusive, because it's hard to go back to the previous version

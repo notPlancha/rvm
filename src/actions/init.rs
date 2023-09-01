@@ -38,18 +38,15 @@ pub fn main(mut rversion: String, path: &Path, options : &Cli) {
       }
     }
     // delete the env folder and yaml file
-    if !options.dry_run {
-      if env_exists {
-        std::fs::remove_dir_all(&env_path).unwrap_or_else(|err| panic!("Failed to remove env folder: {:?}", err));
-      }
-      if yaml_exists {
-        std::fs::remove_file(&yaml_path).unwrap_or_else(|err| panic!("Failed to remove yaml file: {:?}", err));
-      }
+    if env_exists {
+      std::fs::remove_dir_all(&env_path).unwrap_or_else(|err| panic!("Failed to remove env folder: {:?}", err));
+    }
+    if yaml_exists {
+      std::fs::remove_file(&yaml_path).unwrap_or_else(|err| panic!("Failed to remove yaml file: {:?}", err));
     }
   }
   //endregion
   create_folder_if_needed(&env_path);
-
   let version_is_latest = rversion == "latest" || rversion == "release"; //TODO move this out of this function me thinks
   if version_is_latest {
     rversion = get_latest_R().unwrap(); //TODO change unrwap here
@@ -57,7 +54,8 @@ pub fn main(mut rversion: String, path: &Path, options : &Cli) {
     // check if version is valid
     version_parser::Version::parse(&rversion).unwrap_or_else(|err| panic!("Failed to parse version: {:?}", err));
   }
-
+  install_version(env_path.clone(), &rversion);
+  //region build env and yaml file
   let curr_packs:Vec<Package> = get_current_packages(&env_path);
   // because this is a fresh install, this is only going to be base and reccomended
   // base no need to specify, reccomended can
@@ -65,7 +63,7 @@ pub fn main(mut rversion: String, path: &Path, options : &Cli) {
   let mut depends: HashMap<String, Range> = HashMap::new();
   for pack in curr_packs {
     match pack.priority {
-      Priority::Recommended => depends.insert(pack.name, pack.Rrange),
+      Priority::Recommended => {depends.insert(pack.name, pack.Rrange); ()}, // to return nothing
       _ => ()
     }
   }
@@ -74,7 +72,7 @@ pub fn main(mut rversion: String, path: &Path, options : &Cli) {
     dependencies: depends,
     ..Default::default()
   };
-  if !options.dry_run{ install_version(env_path, &rversion) } //TODO maybe move dry run lower?
+  //endregion
   write_yaml(env, yaml_path).unwrap_or_else(|err| panic!("Failed to write yaml: {:?}", err)); //TODO version recieving null
 }
 

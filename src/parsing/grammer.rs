@@ -1,7 +1,11 @@
 use crate::parsing::version_parser::{Version, Range, Op};
 
 // Dependency is a simplified Package because it doesn't has all the info
-pub type Dependency = (String, Range);
+#[derive(Debug, PartialEq)]
+pub struct Dependency {
+  pub name: String,
+  pub range: Range
+}
 
 
 
@@ -62,10 +66,10 @@ peg::parser!( pub grammar the_parser() for str {
     = o:$("==" / "!=" / "<=" / ">=" / "=" / "<" / ">" / "~" / "^" / " " / "") { Op::from_str(o).unwrap() }
       // => and =< will fail, but that's ok
 
-  pub rule parse_dependency() -> (String, Range)
-    = " "* n:chars() " "* "(" r:parse_range() ")" " "* { (n, r) }
-    / " "* n:chars() " "* r:parse_range() " "* { (n, r) }
-    / " "* n:chars() " "*{ (n, Range::default()) }
+  pub rule parse_dependency() -> Dependency
+    = " "* n:chars() " "* "(" r:parse_range() ")" " "* { Dependency { name: n, range: r } }
+    / " "* n:chars() " "* r:parse_range() " "* { Dependency { name: n, range: r } }
+    / " "* n:chars() " "*{ Dependency { name: n, range: Range::default() } }
 
   pub rule parse_dependencies() -> Vec<Dependency>
     = " "* d:(parse_dependency() ** ",") " "* ![_] { d }

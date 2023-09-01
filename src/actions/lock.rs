@@ -1,12 +1,15 @@
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::slice::RSplit;
 use clap::builder::Str;
+use peg::str::LineCol;
 use thiserror::Error;
 use crate::parsing::grammer::Dependency;
-use crate::parsing::version_parser::{ParseError, Range, Version};
+use crate::parsing::version_parser::{Range, Version};
 use crate::parsing::grammer::the_parser::{parse_dependencies};
+use crate::utils::{ToAbsolute};
 
 #[allow(non_snake_case)]
+#[derive(Default)]
 pub struct Package {
   pub name: String,
   pub priority: Priority,
@@ -20,21 +23,19 @@ pub struct Package {
 enum PackageError {
   #[error("error in reading file")]
   Io(#[from] std::io::Error),
-  #[error("error in parsing .yaml file")]
-  Serde(#[from] serde_yaml::Error),
+  #[error("error in serializing .yaml file")]
+  Serialization, // Custom serde
   #[error("error in parsing")]
-  Parsing(#[from] ParseError),
+  Parsing(#[from] peg::error::ParseError<LineCol>),
+  #[error("error in parsing version or range")]
+  Version(#[from] crate::parsing::version_parser::ParseError),
   #[error("error in description keys")]
   Description
 }
 
-fn get_key(tree: &BTreeMap<String, str>, key: &str) -> Result<&str, PackageError> {
-  tree.get(key).ok_or(PackageError::Description)
-}
-
 impl Package {
   pub fn getCurrentPackages(env_path: &Path) -> Vec<Package> {
-    let library_path = env_path.join(r"library\");
+    let library_path = env_path.join(r".\library\").to_absolute();
     let mut ret: Vec<Package> = Vec::new();
     // for all folders in the path
     for entry in library_path.read_dir().unwrap() {
@@ -42,57 +43,45 @@ impl Package {
       let path = entry.path();
       // if the folder is a package
       if path.join("DESCRIPTION").exists() {
-        let package = Package::from_description(path.join("DESCRIPTION"));
+        let package = Package::from_description(path.join("DESCRIPTION")).unwrap();
         ret.push(package);
       }
-
     }
     ret
-
   }
 
-  pub fn from_description(path: PathBuf) -> Package {
-    let buff = std::fs::read_to_string(path).unwrap();
-    Package::from_description_buff(&buff).unwrap()
-  }
-
-
-  fn from_description_buff(buff: &str) -> Result<Package, PackageError> {
-    let desc: BTreeMap<String, str> = serde_yaml::from_str(buff)?;
-    let name = get_key(&desc, "Package")?.to_owned();
-    let version = Version::parse(get_key(&desc, "Version")?)?;
-    let priority = match desc.get("Priority") {
-      Some("base") => Priority::Base,
-      Some("recommended") => Priority::Recommended,
-      _ => Priority::None
-    };
-    let mut deps: Vec<Dependency> = Vec::new();
-    let deps_depends = desc.get("Depends");
-    if deps_depends.is_some() {
-      deps.extend(parse_dependencies(deps_depends.unwrap())?);
-    }
-    let deps_imports = desc.get("Imports");
-    if deps_imports.is_some() {
-      deps.extend(parse_dependencies(deps_imports.unwrap())?);
-    }
-    // extract R version from deps (has name R) and remove from deps
-    let mut Rrange = Range::default();
-    let mut new_deps: Vec<Dependency> = Vec::new();
-    for dep in deps {
-      if dep.name == "R" {
-        Rrange = dep.range;
-      } else {
-        new_deps.push(dep);
+  pub fn from_description(path: PathBuf) -> Result<Package, peg::error::ParseError<LineCol>> {
+    // get line by line
+    let file = std::fs::read_to_string(path).unwrap();
+    let mut ret = Package::default();
+    let mut deps : Vec<Dependency> = vec![];
+    for line in file.lines() {
+      //check if starts with needed
+      if line.starts_with("Package:") {
+        ret.name = line.split_once(":").unwrap().1.trim().to_string();
+      }
+      else if line.starts_with("Priority:") {
+        ret.priority = match line.split_once(":").unwrap().1.trim() {
+          "base" => Priority::Base,
+          "recommended" => Priority::Recommended,
+          _ => Priority::None
+        }
+      }
+      else if line.starts_with("Version:") {
+        ret.version = Version::parse(line.split_once(":").unwrap().1.trim()).unwrap();
+      }
+      else if line.starts_with("Depends:") || line.starts_with("Imports:") {
+        let mut these_deps = parse_dependencies(line.split_once(":").unwrap().1.trim())?;
+        // remove and collect Rversion
+        let mut R_dep = these_deps.iter().position(|x| x.name == "R");
+        if R_dep.is_some() {
+          ret.Rrange = these_deps.remove(R_dep.unwrap()).range;
+        }
+        deps.extend(these_deps);
       }
     }
-    Ok(Package {
-      name,
-      priority,
-      version,
-      source: Source::Unknown,
-      dependencies: new_deps,
-      Rrange
-    })
+    ret.dependencies = deps;
+    Ok(ret)
   }
 }
 
@@ -108,7 +97,7 @@ pub enum Priority {
 }
 
 #[derive(Default)]
-enum Source {
+pub enum Source {
   CRAN,
   Github,
   Gitlab,
