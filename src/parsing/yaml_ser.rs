@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use crate::local_utils::get_latest;
+use crate::local_utils::get_latest_R;
 use crate::parsing::version_parser::{ParseError, Range, Version};
 
 
@@ -34,43 +34,21 @@ pub struct Env {
   pub description: Option<String>,
   pub r#type: Option<ProjectType>,
   pub version: Option<String>,
-  pub rversion: Rversion,
-  pub dependencies: HashMap<String, String>
+  pub rversion: Range,
+  pub dependencies: HashMap<String, Range>
 }
 
 impl Default for Env {
   fn default() -> Self {
-    let latest = get_latest().unwrap_or_default();
+    let latest = get_latest_R().unwrap_or_default();
     Self {
       name: Some("My project".to_owned()),
       description: Some("My project description".to_owned()),
       r#type: Some(ProjectType::default()),
       version: Some("1.0.0".to_string()),
-      rversion: Rversion::from_str(&latest).unwrap_or_else(|err| panic!("Failed to parse version: {:?}", err)),
-      dependencies: HashMap::from([
-        ("pak".to_owned(), "^0.5.1".to_owned())
-      ])
+      rversion: Range::from_str(format!("^{}", latest).as_str()).unwrap(),
+      dependencies: HashMap::new()
     }
-  }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Rversion {
-  pub accepted: Range,
-  pub pinned: Version,
-}
-
-impl FromStr for Rversion {
-  type Err = ParseError;
-
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
-    //like above
-    let accepted = Range::parse(format!("^{}", s).as_str())?;
-    let pinned = Version::parse(s)?;
-    Ok(Self {
-      accepted,
-      pinned
-    })
   }
 }
 
@@ -78,6 +56,5 @@ impl FromStr for Rversion {
 pub enum ProjectType {
   Package,
   Jupyter,
-  #[default]
-  Project
+  #[default] Project
 }

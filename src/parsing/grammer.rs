@@ -1,5 +1,10 @@
 use crate::parsing::version_parser::{Version, Range, Op};
 
+// Dependency is a simplified Package because it doesn't has all the info
+pub type Dependency = (String, Range);
+
+
+
 peg::parser!( pub grammar the_parser() for str {
   pub rule parse_version() -> Version
     = " "* v:version() " "* ![_] {v} // ![_] means end of file
@@ -28,6 +33,7 @@ peg::parser!( pub grammar the_parser() for str {
   rule chars() -> String
     = n:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '.']+) {? Ok(n.to_string())}
 
+
   rule separator() -> ()
     = n:$([' ' | ',' | ';']) {}
   rule supOrEnd() -> ()
@@ -55,4 +61,12 @@ peg::parser!( pub grammar the_parser() for str {
   rule op() -> Op
     = o:$("==" / "!=" / "<=" / ">=" / "=" / "<" / ">" / "~" / "^" / " " / "") { Op::from_str(o).unwrap() }
       // => and =< will fail, but that's ok
+
+  pub rule parse_dependency() -> (String, Range)
+    = " "* n:chars() " "* "(" r:parse_range() ")" " "* { (n, r) }
+    / " "* n:chars() " "* r:parse_range() " "* { (n, r) }
+    / " "* n:chars() " "*{ (n, Range::default()) }
+
+  pub rule parse_dependencies() -> Vec<Dependency>
+    = " "* d:(parse_dependency() ** ",") " "* ![_] { d }
 });

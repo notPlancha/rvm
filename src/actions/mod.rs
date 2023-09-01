@@ -4,6 +4,10 @@ use cli_prompts::{
   style::{Color, ConfirmationStyle, Formatting, InputStyle, LabelStyle},
 };
 pub mod init;
+pub mod add;
+pub mod run;
+mod lock;
+mod install;
 
 
 // https://docs.rs/cli-prompts/0.1.0/src/styling/styling.rs.html#38

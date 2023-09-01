@@ -289,7 +289,7 @@ impl Default for Version {
   }
 }
 
-#[derive(Default, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
+#[derive(Default, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)] //default should be equal to *
 pub struct Range { //TODO should implement exclusion ranges?
   pub min: Option<Version>, //inclusive
   pub max: Option<Version>, //exclusive, because it's hard to go back to the previous version
@@ -303,6 +303,14 @@ impl Display for Range {
     if self.is_any() {
       return write!(f, "*");
     }
+    // special check to prefer ^ and ~ when possible
+    if let Some(caret) = self.to_caret() {
+      return write!(f, "{}", caret);
+    }
+    if let Some(tilde) = self.to_tilde() {
+      return write!(f, "{}", tilde);
+    }
+
     let mut s = String::new();
     if let Some(min) = &self.min {
       s.push_str(&format!(">={},", min.to_string()));
@@ -339,7 +347,29 @@ impl Range {
   fn is_exact_match(&self) -> bool { // min == max or just includes one version
     todo!()
   }
+  fn to_caret(&self) -> Option<String> {
+    //transforms range to caret range if appropriate
+    if self.min.is_some() && self.max.is_some() {
+      let min = self.min.as_ref().unwrap();
+      let max= self.max.as_ref().unwrap();
+      if max.patch == 0 && max.minor == 0 && max.major == min.major + 1 {
+        return Some(format!("^{}", min));
+      }
+    }
+    return None
+  }
 
+  fn to_tilde(&self) -> Option<String> {
+    //transforms range to tilde range if appropriate
+    if self.min.is_some() && self.max.is_some() {
+      let min = self.min.clone().unwrap();
+      let max = self.max.clone().unwrap();
+      if max.patch == 0 && max.minor == min.minor + 1 && max.major == min.major {
+        return Some(format!("~{}", min));
+      }
+    }
+    return None
+  }
   fn separate_ops(ranges: Vec<(Op, Version)>) -> HashMap<Op, Vec<Version>> {
     let mut map = HashMap::new();
     for (op, version) in ranges {

@@ -7,6 +7,7 @@ mod parsing;
 use std::path::Path;
 use clap::Parser;
 use args::{Cli, Action};
+use crate::utils::ToAbsolute;
 
 fn main() {
   let args = &Cli::parse();
@@ -18,13 +19,25 @@ fn main() {
         Path::new(&path),
         args
       ),
+    Action::Add {packages, path} => {
+      actions::add::main(
+        packages.to_owned(),
+        Path::new(&path),
+        args
+      )
+    },
+    Action::Run {command, path} => {
+      dbg!(command);
+      dbg!(path);
+      todo!()
+    }
   }
 }
 
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
-  use crate::local_utils::get_latest;
+  use crate::local_utils::get_latest_R;
   use crate::parsing::version_parser::{ParseError, Range};
   use crate::parsing::version_parser::Version;
   #[test]
@@ -56,7 +69,7 @@ mod tests {
   #[allow(non_snake_case)]
   fn parse_R_ver() {
     // needs internet connection or will fail
-    p(get_latest().unwrap().as_str());
+    p(get_latest_R().unwrap().as_str());
   }
   fn p(version: &str) -> Version {
     dbg!(version);

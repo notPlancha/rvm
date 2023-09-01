@@ -37,7 +37,8 @@ pub fn download_R(version: &String, dest: Option<PathBuf>) -> Result<PathBuf, St
 }
 
 
-pub fn get_latest() -> Result<String, StatusCode> {
+#[allow(non_snake_case)]
+pub fn get_latest_R() -> Result<String, StatusCode> {
   // returns the latest version of R using release.html
   // Example html
   // <html>
@@ -76,4 +77,9 @@ pub fn get_latest() -> Result<String, StatusCode> {
 lazy_static!{
   // http client
   static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::new();
+}
+
+pub fn curr_dir() -> PathBuf {
+  // Here it can panic because it should be getting anywhere
+  std::env::current_dir().unwrap_or_else(|err| panic!("Failed to get current dir: {:?}", err))
 }
