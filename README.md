@@ -29,3 +29,4 @@ cargo build
 
 * Add a way to create a DESCRIPTION file
 * Integrate conflicted
+* Change the semver to a separate package
